@@ -151,8 +151,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1
             }
         },
         {
@@ -308,6 +308,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params
+    // console.log("USERNAME::",username,username.length);
 
     if (!username?.trim) {
         throw new ApiError(400, "username is missing")
@@ -338,25 +339,33 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         {
             $addFields: {
                 subscribersCount: {
-                    $size: "$subscriptions"
+                    $cond: {
+                        if: { $isArray: "$subscriptions" },
+                        then: { $size: "$subscriptions" },
+                        else: 0
+                    }
                 },
                 subscribedToCount: {
-                    $size: "$subscribedTo"
+                    $cond: {
+                        if: { $isArray: "$subscribedTo" },
+                        then: { $size: "$subscribedTo" },
+                        else: 0
+                    }
                 },
                 isSubscribed: {
-                    $cond:{
-                        if:{ $in: [ req.user?._id, "$subscribers.subscriber" ]},
-                        then:true,
-                        else:false
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false
                     }
                 }
             }
         },
         {
-            $project:{
-                fullname:1,
-                username:1,
-                email:1,
+            $project: {
+                fullname: 1,
+                username: 1,
+                email: 1,
                 avatar: 1,
                 coverImage: 1,
                 subscribersCount: 1,
@@ -366,16 +375,16 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         }
     ])
 
-    if(!channel?.length){
-        throw new ApiError(404,"Channel does not exist")
+    if (!channel?.length) {
+        throw new ApiError(404, "Channel does not exist")
     }
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,channel[0],"User channel fetched successfully"))
+        .status(200)
+        .json(new ApiResponse(200, channel[0], "User channel fetched successfully"))
 })
 
-const getWatchHistory = asyncHandler(async (req,res) => {
+const getWatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
         {
             $match: {
@@ -384,32 +393,32 @@ const getWatchHistory = asyncHandler(async (req,res) => {
         },
         {
             $lookup: {
-                from:"videos",
-                localField:"watchHistory",
-                foreignField:"_id",
-                as:"watchHistory",
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
                 pipeline: [
                     {
-                        $lookup:{
-                            from:"users",
-                            localField:"owner",
-                            foreignField:"_id",
-                            as:"owner",
-                            pipeline:[
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
                                 {
-                                    $project:{
-                                        fullname:1,
-                                        username:1,
-                                        avatar:1
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
                                     }
                                 }
                             ]
                         }
                     },
                     {
-                        $addFields:{
-                            owner:{
-                                $first:"$owner"
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"
                             }
                         }
                     }
@@ -419,8 +428,8 @@ const getWatchHistory = asyncHandler(async (req,res) => {
     ])
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,user[0].watchHistory,"Watch history fetched successfully"))
+        .status(200)
+        .json(new ApiResponse(200, user[0].watchHistory, "Watch history fetched successfully"))
 })
 
 export {
