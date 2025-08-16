@@ -20,7 +20,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         pipeline.push(
             {
                 $match: {
-                    owner: mongoose.Types.ObjectId(userId)
+                    owner: new mongoose.Types.ObjectId(userId)
                 }
             },
         )
@@ -115,13 +115,123 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while creating video")
     }
 
-    // console.log("This is video =>",videoFile);
+    // console.log("uploaded video =>",videoFile);
     return res.status(201).json(
         new ApiResponse(201, createdVideo, "video created successfully")
     )
 })
 
+const getVideoById = asyncHandler(async (req,res) => {
+    const { videoId } = req.params
+
+    if(videoId){
+        if(!mongoose.Types.ObjectId.isValid(videoId)){
+            throw new ApiError(400,"Invalid video id")
+        }
+    }
+
+    const video = await Video.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                foreignField: "_id",
+                localField: "owner",
+                as:"owner"
+            }
+        },
+        {
+            $addFields:{
+                owner:{
+                    $first: "$owner"
+                }
+            }
+        }
+    ])
+
+
+    if(!video){
+        throw new ApiError(500,"Something went wrong while retrieve video info")
+    }
+    
+    return res.status(200).json(new ApiResponse(200,video[0]))
+})
+
+const updateVideo = asyncHandler(async (req,res) => {
+    const { videoId } = req.params
+
+    if(!mongoose.Types.ObjectId.isValid(videoId)){
+        throw new ApiError(400,"videoId is not valid")
+    }
+
+    const { title, description } = req.body
+
+    if([title, description].some((field) => (field?.trim() === ""))){
+        throw new ApiError(400,"All fields are required")
+    }
+
+    const thumbnailLocalPath = req.files?.path
+    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+
+    if(!thumbnail.url){
+        throw new ApiError(500,"Something went wrong while uploading thumbnail on cloudinary")
+    }
+
+    const video = await Video.findByIdAndUpdate(videoId,
+        {
+            $set:{
+                thumbnail: thumbnail.url,
+                title,
+                description
+            }
+        },
+        {
+            new:true
+        }
+    )
+
+    return res.status(200).json(new ApiResponse(200,video,"Video details updated successfully"))
+})
+
+const deleteVideo = asyncHandler(async (req,res) => {
+    const { videoId } = req.params
+
+    if(!mongoose.Types.ObjectId.isValid(videoId)){
+        throw new ApiError(400,"Video Id is not valid")
+    }
+
+    const video = await Video.findByIdAndDelete(videoId)
+
+    if(!video){
+        throw new ApiError(500,"Something went wrong while deleting the video")
+    }
+
+    return res.status(200).json(new ApiResponse(200,video,"Video deleted sucessfully"))
+})
+
+const togglePublishStatus = asyncHandler(async (req,res) => {
+    const { videoId } = req.params
+    if(!mongoose.Types.ObjectId.isValid(videoId)){
+        throw new ApiError(400,"video id is not valid") 
+    }
+
+    const video = await Video.findById(videoId)
+
+    video.isPublished = !video.isPublished
+    const updatedVideo = await video.save({ validateBeforeSave: false })
+
+    return res.status(200).json(new ApiResponse(200, updatedVideo,"Video toggle published successfully"))
+})
+
 export {
     getAllVideos,
-    publishAVideo
+    publishAVideo,
+    getVideoById,
+    updateVideo,
+    deleteVideo,
+    togglePublishStatus
 }
