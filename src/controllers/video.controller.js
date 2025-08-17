@@ -32,7 +32,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
                 $match: {
                     $text: {
                         $search: query
-                    }
+                    },
+                    isPublished: { $ne: false }
                 }
             },
         )
