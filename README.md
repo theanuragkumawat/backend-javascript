@@ -14,6 +14,7 @@ Builed this project for start my backend journey in MERN Stack
 - Includes basic async/await usage and error handling patterns
 - Custom class for error handling and sending response
 - Mongodb aggregation pipeline
+- Multer for handling images and video
 
 ### Tech Stack
 - Runtime: Node.js
