@@ -13,6 +13,7 @@ Builed this project for start my backend journey in MERN Stack
 - Emphasis on modern JavaScript (ES6+) development practices.
 - Includes basic async/await usage and error handling patterns
 - Custom class for error handling and sending response
+- Mongodb aggregation pipeline
 
 ### Tech Stack
 - Runtime: Node.js
